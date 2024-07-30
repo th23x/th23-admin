@@ -5,7 +5,7 @@ Admin functionality for WordPress plugins in an easy re-usable way
 
 ## 🚀 Introduction
 
-Adding some **single options** to an **existing settings page** in the WP admin area is easy using the "(register_setting)[https://developer.wordpress.org/reference/functions/register_setting/]" and "(add_settings_field)[https://developer.wordpress.org/reference/functions/add_settings_field/]" functions.
+Adding some **single options** to an **existing settings page** in the WP admin area is easy using the "[register_setting](https://developer.wordpress.org/reference/functions/register_setting/)" and "[add_settings_field](https://developer.wordpress.org/reference/functions/add_settings_field/)" functions.
 
 But building your own dedicated **plugin settings page** and manage various **settings depending on each other**, ie layered, with some options only relevant depending on a previous choice, can be a more challenging task to achive.
 
