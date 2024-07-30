@@ -53,6 +53,7 @@ if(is_admin() && file_exists($th23_example_path . 'th23-example-admin.php')) {
 
 > [!TIP]
 > This is the most minimal example, ideally the you use a frontend class for your plugin as well, which defines some variables used on both frontend and backend. In such a setup the admin class extends the frontend class and both together can be initialized.
+> 
 > See `th23-example-admin.php` file for more about loading the admin class separately or as extension of the frontend...
 
 
