@@ -1,6 +1,6 @@
 # 🛠️ th23 Admin
 
-Admin functionality for WordPress plugins in an easy re-usable way
+Admin framework / boilerplate with easy re-usable functionality for WordPress plugins
 
 
 ## 🚀 Introduction
@@ -28,24 +28,25 @@ inc/
    th23-admin-class.php
    th23-admin-class.js
    th23-admin-class.css
-your-plugin.php
+th23-example.php
+th23-example-admin.php
 ...
 ```
 
 The `/inc` folder contains the whole `th23 Admin` script and its accompanying JS and CSS files, thus being separated from your plugin code and keeping it easy to change / update later on.
 
-In the `your-plugin.php` as the main plugin file with your plugins functionality simply add the following code to setup / initiatlize the `th23 Admin` class:
+In the `th23-example.php` as the main plugin file with your plugins functionality simply add the following code to setup / initialize the `th23 Admin` class:
 ```
-// Mimic Pro class, if it does not exist
-if(!class_exists('th23_example_pro')) {
-	class th23_example_pro {
-		function __construct() {}
-	}
-}
-
-// Load admin class, if required...
 $th23_example_path = plugin_dir_path(__FILE__);
+
 if(is_admin() && file_exists($th23_example_path . 'th23-example-admin.php')) {
+	if(!class_exists('th23_example')) {
+		class th23_example {
+			public $plugin = array();
+			public $options = array();
+			public $data = array();
+		}
+	}
 	require($th23_example_path . 'th23-example-admin.php');
 	$th23_example_admin = new th23_example_admin();
 }
@@ -53,15 +54,15 @@ if(is_admin() && file_exists($th23_example_path . 'th23-example-admin.php')) {
 
 > [!TIP]
 > This is the most minimal example, ideally the you use a frontend class for your plugin as well, which defines some variables used on both frontend and backend. In such a setup the admin class extends the frontend class and both together can be initialized.
-> 
+>
 > See `th23-example-admin.php` file for more about loading the admin class separately or as extension of the frontend...
 
 
 ## 🖐️ Usage
 
-Define your plugin settings upon loading the `th23 Admin` class in your main plugin file - or its separate admin part.
+Define your plugin settings upon loading the `th23 Admin` class from your plugins admin file (`th23-example-admin.php` in the example above).
 
-See `th23-example-admin.php` file for an extensive description of the possibilities - no worries, your file will usually be much shorter as many options can be defined much swifter and without such extensive comments, eg like this one:
+See `th23-example-admin.php` file in this repository for an extensive description of the possibilities - no worries, your file will usually be much shorter as many options can be defined much swifter and without such extensive comments, eg like this one:
 ```
 // example: for shortest notation of a plugin option, storing a string value as "resize_suffix"
 $this->plugin['options']['resize_suffix'] => array(
@@ -72,6 +73,13 @@ $this->plugin['options']['resize_suffix'] => array(
 
 > [!TIP]
 > Ensure you have covered everything labeled as `required:` in the `th23-example-admin.php` file, while other things are `optional:` or even only `èxamples:` you can look at!
+
+**Access setting values** in your main plugin by simply using the default `get_option` function, which returns an indexed array, with the indexes being the defined `plugin_option_ident` names:
+```
+$options = (array) get_option($this->plugin['slug']);
+
+print_r($options); // echo options array
+```
 
 
 ## 🤝 Contributors
