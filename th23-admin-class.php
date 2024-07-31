@@ -2,7 +2,7 @@
 /*
 th23 Admin
 Basic admin functionality
-Version: 1.2.0
+Version: 1.4.0
 
 Coded 2024 by Thorsten Hartmann (th23)
 https://th23.net/
@@ -16,6 +16,8 @@ if(!defined('ABSPATH')) {
 }
 
 class th23_admin {
+
+	public $version = '1.4.0';
 
 	private $parent;
 	private $kses = array();
@@ -83,38 +85,10 @@ class th23_admin {
 		return $links;
 	}
 
-	// Version details
-	// note: Any CSS styling needs to be "hardcoded" here as plugin CSS might not be loaded (e.g. on plugin overview page)
-	function plugin_professional($highlight = false) {
-		$title = '<em>' . $this->__('Professional') . '</em>';
-		return ($highlight) ? '<span style="font-weight: bold; color: #336600;">' . $title . '</span>' : $title;
-	}
-	function plugin_basic() {
-		return '<em>' . $this->__('Basic') . '</em>';
-	}
-	function plugin_upgrade($highlight = false) {
-		/* translators: parses in name of the upgrade version */
-		$title = sprintf($this->__('Upgrade to %s version'), $this->plugin_professional());
-		return ($highlight) ? '<span style="font-weight: bold; color: #CC3333;">' . $title . '</span>' : $title;
-	}
-
 	// Add supporting information (eg links and notices) to plugin row in plugin overview page
 	// note: Any CSS styling needs to be "hardcoded" here as plugin CSS might not be loaded (e.g. when plugin deactivated)
 	function contact_link($links, $file) {
 		if($this->parent->plugin['basename'] == $file) {
-			// Expand version details
-			$version = $this->parent->plugin['version'];
-			if(!empty($this->parent->plugin['pro'])) {
-				$version .=  ' ' . $this->plugin_professional(true);
-			}
-			elseif(!empty($this->parent->plugin['extendable'])) {
-				$version .= ' ' . $this->plugin_basic();
-				if(empty($this->parent->plugin['requirement_notices']) && !empty($this->parent->plugin['download_url'])) {
-					$version .= ' - <a href="' . esc_url($this->parent->plugin['download_url']) . '">' . $this->plugin_upgrade(true) . '</a>';
-				}
-			}
-			/* translators: parses in plugin version number and details */
-			$links[0] = wp_kses(sprintf($this->__('Version %s'), $version), $this->kses['link_format']);
 			// Add support link
 			if(!empty($this->parent->plugin['support_url'])) {
 				$links[] = '<a href="' . esc_url($this->parent->plugin['support_url']) . '">' . esc_html($this->__('Support')) . '</a>';
@@ -513,14 +487,6 @@ class th23_admin {
 			}
 		}
 
-		// Handle Profesional extension upload and show upgrade information
-		if(empty($this->pro_upload()) && empty($this->parent->plugin['pro']) && empty($this->parent->plugin['requirement_notices']) && !empty($this->parent->plugin['extendable']) && !empty($this->parent->plugin['download_url'])) {
-			echo '<div class="th23-admin-about">';
-			echo wp_kses($this->parent->plugin['extendable'], array_merge(array('p' => array()), $this->kses['link_format']));
-			echo '<p><a href="' . esc_url($this->parent->plugin['download_url']) . '">' . wp_kses($this->plugin_upgrade(true), $this->kses['format']) . '</a></p>';
-			echo '</div>';
-		}
-
 		// Show plugin settings
 		// start table
 		echo '<table class="form-table"><tbody>';
@@ -700,9 +666,7 @@ class th23_admin {
 				/* reviewer: html content is html escaped at source */
 				echo $html;
 				if(!empty($option_details['description'])) {
-					/* translators: parses in version name */
-					$pro_description = (!empty($option_details['pro_only']) && !empty($this->parent->plugin['extendable']) && empty($this->parent->plugin['pro'])) ? '<span class="notice notice-description notice-warning">' . sprintf(esc_html($this->__('This option is only available with the %s version of this plugin')), $this->plugin_professional()) . '</span>' : '';
-					echo '<span class="description">' . wp_kses($option_details['description'], $this->kses['description']) . '</span>' . wp_kses($pro_description, $this->kses['format']);
+					echo '<span class="description">' . wp_kses($option_details['description'], $this->kses['description']) . '</span>';
 				}
 				echo '</fieldset></td>';
 				echo '</tr>';
@@ -729,20 +693,8 @@ class th23_admin {
 		else {
 			echo '<p><strong>' . esc_html($this->parent->plugin['data']['Name']) . '</strong>' . ' | ';
 		}
-		$version = $this->parent->plugin['version'];
-		if(!empty($this->parent->plugin['pro'])) {
-			$version .=  ' ' . $this->plugin_professional(true);
-		}
-		elseif(!empty($this->parent->plugin['extendable'])) {
-			$version .= ' ' . $this->plugin_basic();
-			if(empty($this->parent->plugin['requirement_notices']) && !empty($this->parent->plugin['download_url'])) {
-				$version .= ' - <a href="' . esc_url($this->parent->plugin['download_url']) . '">' . $this->plugin_upgrade(true) . '</a>  (<label for="th23-admin-pro-file">' . esc_html($this->__('Upload upgrade')) . '</label>)';
-			}
-			// embed upload for Professional extension
-			$version .= '<input type="file" name="th23-admin-pro-file" id="th23-admin-pro-file" />';
-		}
-		/* translators: parses in plugin version number and details */
-		echo wp_kses(sprintf($this->__('Version %s'), $version), $this->kses['link_format']);
+		/* translators: parses in plugin version number */
+		echo esc_html(sprintf($this->__('Version %s'), $this->parent->plugin['version']));
 		/* translators: parses in plugin author name / link */
 		echo ' | ' . wp_kses(sprintf($this->__('By %s'), $this->parent->plugin['data']['Author']), $this->kses['link']);
 		if(!empty($this->parent->plugin['support_url'])) {
@@ -907,100 +859,6 @@ class th23_admin {
 		return $html;
 
 	}
-
-	// Handle Profesional extension upload
-	// todo: before using "live" and upload into WP repo address:
-	// 1) move_uploaded_file is a forbidden function in WP - use wp_handle_upload instead, see https://stackoverflow.com/questions/18977368/how-to-use-move-uploaded-file-in-wordpress
-	// 2) avoid direct usage of chmod - use WP_Filesystem_Direct::chmod instead, see https://developer.wordpress.org/reference/classes/wp_filesystem_direct/chmod
-	function pro_upload() {
-
-		if(empty($_FILES['th23-admin-pro-file']) || empty($pro_upload_name = $_FILES['th23-admin-pro-file']['name'])) {
-			return;
-		}
-
-		global $th23_contact_path;
-		$files = array();
-		$try_again = '<label for="th23-admin-pro-file">' . esc_html($this->__('Try again?')) . '</label>';
-
-		// zip archive
-		if('.zip' == substr($pro_upload_name, -4)) {
-			// check required ZipArchive class (core component of most PHP installations)
-			if(!class_exists('ZipArchive')) {
-				echo '<div class="notice notice-error"><p><strong>' . esc_html($this->__('Error')) . '</strong>: ';
-				/* translators: parses in "Try again?" link */
-				echo wp_kses(sprintf($this->__('Your server can not handle zip files. Please extract it locally and try again with the individual files. %s'), $try_again), $this->kses['label']) . '</p></div>';
-				return;
-			}
-			// open zip file
-			$zip = new ZipArchive;
-			if($zip->open($_FILES['th23-admin-pro-file']['tmp_name']) !== true) {
-				echo '<div class="notice notice-error"><p><strong>' . esc_html($this->__('Error')) . '</strong>: ';
-				/* translators: parses in "Try again?" link */
-				echo wp_kses(sprintf($this->__('Failed to open zip file. %s'), $try_again), $this->kses['label']) . '</p></div>';
-				return;
-			}
-			// check zip contents
-			for($i = 0; $i < $zip->count(); $i++) {
-			    $zip_file = $zip->statIndex($i);
-				$files[] = $zip_file['name'];
-			}
-			if(!empty(array_diff($files, $this->parent->plugin['extension_files']))) {
-				echo '<div class="notice notice-error"><p><strong>' . esc_html($this->__('Error')) . '</strong>: ';
-				/* translators: parses in "Try again?" link */
-				echo wp_kses(sprintf($this->__('Zip file seems to contain files not belonging to the Professional extension. %s'), $try_again), $this->kses['label']) . '</p></div>';
-				return;
-			}
-			// extract zip to plugin folder (overwrites existing files by default)
-			$zip->extractTo($th23_contact_path);
-			$zip->close();
-		}
-		// (invalid) individual file
-		elseif(!in_array($pro_upload_name, $this->parent->plugin['extension_files'])) {
-			echo '<div class="notice notice-error"><p><strong>' . esc_html($this->__('Error')) . '</strong>: ';
-			/* translators: parses in "Try again?" link */
-			echo wp_kses(sprintf($this->__('This does not seem to be a proper Professional extension file. %s'), $try_again), $this->kses['label']) . '</p></div>';
-			return;
-		}
-		// individual file
-		else {
-			move_uploaded_file($_FILES['th23-admin-pro-file']['tmp_name'], $th23_contact_path . $pro_upload_name);
-			$files[] = $pro_upload_name;
-		}
-
-		// ensure proper file permissions (as done by WP core function "_wp_handle_upload" after upload)
-		$stat = stat($th23_contact_path);
-		$perms = $stat['mode'] & 0000666;
-		foreach($files as $file) {
-			chmod($th23_contact_path . $file, $perms);
-		}
-
-		// check for missing extension files
-		$missing_file = false;
-		foreach($this->parent->plugin['extension_files'] as $file) {
-			if(!is_file($th23_contact_path . $file)) {
-				$missing_file = true;
-				break;
-			}
-		}
-
-		// upload success message
-		if($missing_file) {
-			$missing = '<label for="th23-admin-pro-file">' . esc_html($this->__('Upload missing file(s)!')) . '</label>';
-			echo '<div class="notice notice-warning"><p><strong>' . esc_html($this->__('Done')) . '</strong>: ';
-			/* translators: parses in "Upload missing files!" link */
-			echo wp_kses(sprintf($this->__('Professional extension file uploaded. %s'), $missing), $this->kses['label']) . '</p></div>';
-			return true;
-		}
-		else {
-			$reload = '<a href="' . esc_url($this->parent->plugin['settings']['base'] . '?page=' . $this->parent->plugin['slug']) . '">' . esc_html($this->__('Reload page to see Professional settings!')) . '</a>';
-			echo '<div class="notice notice-success is-dismissible"><p><strong>' . esc_html($this->__('Done')) . '</strong>: ';
-			/* translators: parses in "Reload page to see Professional settings!" link */
-			echo wp_kses(sprintf($this->__('Professional extension file uploaded. %s'), $reload), $this->kses['link']) . '</p><button class="notice-dismiss" type="button"></button></div>';
-			return true;
-		}
-
-	}
-
 
 }
 

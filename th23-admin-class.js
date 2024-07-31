@@ -96,11 +96,6 @@ jQuery(document).ready(function($){
 		e.preventDefault();
 	});
 
-	// handle professional extension upload
-	$('#th23-admin-pro-file').on('change', function(e) {
-		$('#th23-admin-options-submit').click();
-	});
-
 	// shared x-plugin
 	$('#th23-admin-options input ~ span.shared').click(function() {
 		$('#' + $(this).attr('data-target')).val($(this).attr('data-shared'));

@@ -117,18 +117,3 @@ div.th23-admin-about .icon + p {
 div.th23-admin-about a {
   text-decoration: none;
 }
-
-/* professional extension upload */
-#th23-admin-pro-file {
-  position: absolute;
-  left: -9999px;
-  visibility: hidden;
-}
-
-label[for="th23-admin-pro-file"] {
-  vertical-align: unset;
-  color: #0073aa;
-}
-.notice-error label[for="th23-admin-pro-file"], .notice-warning label[for="th23-admin-pro-file"] {
-  text-decoration: underline;
-}

@@ -14,31 +14,28 @@ if(!defined('ABSPATH')) {
     exit;
 }
 
-/* required: initiatlization via main plugin class / file
+/* required: initiatlization via main plugin file containing main plugin class
+
+class th23_example {
+
+	public $plugin = array();
+	public $options = array();
+	public $data = array();
+
+	// ... constructor and further main plugin functions ...
+
+}
 
 $th23_example_path = plugin_dir_path(__FILE__);
-
-// Load additional PRO class, if it exists
-if(file_exists($th23_example_path . 'th23-example-pro.php')) {
-	require($th23_example_path . 'th23-example-pro.php');
-}
-// Mimic PRO class, if it does not exist
-if(!class_exists('th23_example_pro')) {
-	class th23_example_pro extends th23_example {
-		function __construct() {
-			parent::__construct();
-		}
-	}
-}
 
 // Load additional admin class, if required...
 if(is_admin() && file_exists($th23_example_path . 'th23-example-admin.php')) {
 	require($th23_example_path . 'th23-example-admin.php');
 	$th23_example = new th23_example_admin();
 }
-// ...or initiate plugin via (mimiced) PRO class
+// ...or initiate main plugin class
 else {
-	$th23_example = new th23_example_pro();
+	$th23_example = new th23_example();
 }
 
 */
@@ -49,16 +46,15 @@ else {
 
 $th23_example_path = plugin_dir_path(__FILE__);
 
-// Mimic PRO class, if it does not exist
-if(!class_exists('th23_example_pro')) {
-	class th23_example_pro {
-		function __construct() {
+if(is_admin() && file_exists($th23_example_path . 'th23-example-admin.php')) {
+	// Mimic main plugin class, if it does not exist
+	if(!class_exists('th23_example')) {
+		class th23_example {
+			public $plugin = array();
+			public $options = array();
+			public $data = array();
 		}
 	}
-}
-
-// Load admin class, if required...
-if(is_admin() && file_exists($th23_example_path . 'th23-example-admin.php')) {
 	require($th23_example_path . 'th23-example-admin.php');
 	$th23_example_admin = new th23_example_admin();
 }
@@ -70,7 +66,7 @@ if(is_admin() && file_exists($th23_example_path . 'th23-example-admin.php')) {
 $options = (array) get_option($this->plugin['slug']);
 
 */
-class th23_example_admin extends th23_example_pro {
+class th23_example_admin extends th23_example {
 
 	// Extend class-wide variables
 	public $i18n;
@@ -109,15 +105,6 @@ class th23_example_admin extends th23_example_pro {
 		);
 		/* optional: url of support page linked on plugin overview and new admin page, eg WP repository forum, GitHub issues page or own website */
 		$this->plugin['support_url'] = 'https://th23.net/th23-example-support/';
-		/* optional: option to extend plugin with additional (paid) functionality in separate file(s) - if extendable, "extension_files" and "download_url" should be defined as well
-		"extendable" can be a html formatted string, which will be shown on to of the new admin page to promote the (paid) extension
-		note: might contain <p>, <strong>, and <a href=""> tags, but no other html
-		*/
-		$this->plugin['extendable'] = '<p>' . __('Offer <strong>subscribe option for your visitors</strong>, while protecting your website against spam. Visitors can easily become fully registered members later.', 'th23-example') . '</p><p>' . __('Send <strong>personalized email notifications</strong>, addressing users by name for a personal note. Support for nicely formatted HTML emails.</p>', 'th23-example') . '</p>';
-		/* optional: list of files required to extend the functionality of the plugin */
-		$this->plugin['extension_files'] = array('th23-example-pro.php');
-		/* optional: url to download / buy the extentsion */
-		$this->plugin['download_url'] = 'https://th23.net/th23-example/';
 		$this->plugin['requirement_notices'] = array();
 
 		// Load and setup required th23 Admin class
@@ -291,11 +278,6 @@ class th23_example_admin extends th23_example_pro {
 			tip: see real life example from "th23 Contact" plugin further below
 			*/
 			'shared' => true,
-
-			/* optional: add note to description of the option. that "This option is only available with the Professional version of this plugin"
-			note: to disable the input field see "attributes" above, but keep in mind that disabled input fields will not be saved and fall back to default values - in case you want to indicate this option as "inactive" only visually, consider adding/extending the "class" "attribute" and embedd CSS styling accordingly
-			*/
-			'pro_only' => false,
 
 		);
 
@@ -492,11 +474,7 @@ class th23_example_admin extends th23_example_pro {
 		// note: need to populate $this->i18n earliest at init hook to get user locale
 		$this->i18n = array(
 			'Settings' => __('Settings'),
-			'Professional' => __('Professional', 'th23-example'),
-			'Basic' => __('Basic', 'th23-example'),
-			/* translators: parses in name of the upgrade version */
-			'Upgrade to %s version' => __('Upgrade to %s version', 'th23-example'),
-			/* translators: parses in plugin version number and details */
+			/* translators: parses in plugin version number */
 			'Version %s' => __('Version %s', 'th23-example'),
 			/* translators: parses in plugin name */
 			'Copy from %s' => __('Copy from %s', 'th23-example'),
@@ -513,23 +491,6 @@ class th23_example_admin extends th23_example_pro {
 			'Error' => __('Error'),
 			/* translators: 1: option name, 2: opening a tag of link to support/ plugin page, 3: closing a tag of link */
 			'Invalid combination of input field and default value for "%1$s" - please %2$scontact the plugin author%3$s' => __('Invalid combination of input field and default value for "%1$s" - please %2$scontact the plugin author%3$s', 'th23-example'),
-			'Try again?' => __('Try again?', 'th23-example'),
-			/* translators: parses in "Try again?" link */
-			'Your server can not handle zip files. Please extract it locally and try again with the individual files. %s' => __('Your server can not handle zip files. Please extract it locally and try again with the individual files. %s'),
-			/* translators: parses in "Try again?" link */
-			'Failed to open zip file. %s' => __('Failed to open zip file. %s', 'th23-example'),
-			/* translators: parses in "Try again?" link */
-			'Zip file seems to contain files not belonging to the Professional extension. %s' => __('Zip file seems to contain files not belonging to the Professional extension. %s', 'th23-example'),
-			/* translators: parses in "Try again?" link */
-			'This does not seem to be a proper Professional extension file. %s' => __('This does not seem to be a proper Professional extension file. %s', 'th23-example'),
-			'Upload missing file(s)!' => __('Upload missing file(s)!', 'th23-example'),
-			/* translators: parses in "Upload missing files!" link */
-			'Professional extension file uploaded. %s' => __('Professional extension file uploaded. %s', 'th23-example'),
-			'Reload page to see Professional settings!' => __('Reload page to see Professional settings!', 'th23-example'),
-			/* translators: parses in "Reload page to see Professional settings!" link */
-			'Professional extension file uploaded. %s' => __('Professional extension file uploaded. %s', 'th23-example'),
-			/* translators: parses in version name */
-			'This option is only available with the %s version of this plugin' => __('This option is only available with the %s version of this plugin', 'th23-example'),
 		);
 
 	}
@@ -571,19 +532,11 @@ class th23_example_admin extends th23_example_pro {
 	function pre_update($upgrader_object, $options) {
 		if('update' == $options['action'] && 'plugin' == $options['type'] && !empty($options['plugins']) && is_array($options['plugins']) && in_array($this->plugin['basename'], $options['plugins'])) {
 			set_transient('th23_example_update', $this->plugin['version']);
-			if(!empty($this->plugin['pro'])) {
-				set_transient('th23_example_update_pro', $this->plugin['pro']);
-			}
 		}
 	}
 
 	// example: for certain code to be executed after the plugin is updated ("post_update"), eg to trigger requird actions based on the previous version to eg alter a database table to add new fields and prefil these
 	function post_update() {
-
-		// previous Professional extension - remind to update/re-upload
-		if(!empty(get_transient('th23_example_update_pro')) && empty($this->plugin['pro'])) {
-			add_action('th23_example_requirements', array(&$this, 'post_update_missing_pro'));
-		}
 
 		if(empty($previous = get_transient('th23_example_update'))) {
 			return;
@@ -598,18 +551,6 @@ class th23_example_admin extends th23_example_pro {
 		// upon successful update, delete transient (update only executed once)
 		delete_transient('th23_example_update');
 
-	}
-	// previous Professional extension - remind to update/re-upload
-	function post_update_missing_pro($context) {
-		if('plugin_settings' == $context) {
-			$missing = '<label for="th23-example-pro-file"><strong>' . __('Upload Professional extension?', 'th23-example') . '</strong></label>';
-		}
-		else {
-			$missing = '<a href="' . esc_url($this->plugin['settings']['base'] . '?page=' . $this->plugin['slug']) . '"><strong>' . __('Go to plugin settings page for upload...', 'th23-example') . '</strong></a>';
-		}
-		/* translators: 1: "Professional" as name of the version, 2: link to "th23.net" plugin download page, 3: link to "Go to plugin settings page to upload..." page or "Upload updated Professional extension?" link */
-		$notice = sprintf(__('Due to an update the previously installed %1$s extension is missing. Please get the latest version of the %1$s extension from %2$s. %3$s', 'th23-example'), $this->plugin_professional(), '<a href="' . esc_url($this->plugin['download_url']) . '" target="_blank">th23.net</a>', $missing);
-		$this->plugin['requirement_notices']['missing_pro'] = '<strong>' . __('Error', 'th23-example') . '</strong>: ' . $notice;
 	}
 
 	// example: checks for "requirements" - filling $this->plugin['requirement_notices'] with entries in case of any issues detected
@@ -653,7 +594,7 @@ class th23_example_admin extends th23_example_pro {
 			$this->plugin['requirement_notices']['captcha'] = $notice;
 		}
 
-		// allow further checks by Professional extension (without re-assessing $context)
+		// allow further checks (without re-assessing $context)
 		do_action('th23_example_requirements', $context);
 
 	}
