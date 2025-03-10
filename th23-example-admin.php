@@ -484,7 +484,6 @@ class th23_example_admin extends th23_example {
 			'+' => __('+'),
 			'-' => __('-'),
 			'Save Changes' => __('Save Changes'),
-			'Upload upgrade' => __('Upload upgrade', 'th23-example'),
 			/* translators: parses in plugin author name / link */
 			'By %s' => __('By %s'),
 			'Visit plugin site' => __('Visit plugin site'),

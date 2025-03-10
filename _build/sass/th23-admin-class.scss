@@ -1,0 +1,125 @@
+/* plugin option page */
+.th23-admin-options {
+
+	h1 .icon {
+		width: auto;
+		height: 36px;
+	}
+
+	h2:nth-child(n+3) { /* options - section header */
+		margin-top: 2.5em;
+	}
+
+	.form-table .description { /* options - description */
+		display: block;
+	}
+	.th23-admin-screen-option-hide_description .description,
+	.th23-admin-screen-option-hide_description .section-description { /* options - hide descriptions */
+		display: none;
+	}
+
+	.notice-description { /* options - notices within description */
+		display: block;
+		padding: 5px 10px;
+		font-size: 13px;
+	}
+
+	@media screen and (min-width: 783px) {
+		.child th { /* options - children (on bigger screens) */
+			width: 175px;
+			padding-left: 25px;
+		}
+		.sub-child th { /* options - sub-children (on bigger screens) */
+			width: 150px;
+			padding-left: 50px;
+		}
+	}
+
+	input + .unit,
+	select + .unit {
+		margin-left: 0.25em;
+	}
+
+	div.option-template { /* options template - scroll if to wide */
+		overflow-x: auto;
+	}
+	table.option-template { /* options template - table */
+		margin-top: 1em;
+		border-collapse: collapse;
+
+		th,
+		td {
+			border: 1px solid lightgray;
+			padding: .8em .5em;
+			text-align: center;
+		}
+
+		th span.hint { /* options template - header descriptions */
+			border-bottom: 1px dotted gray;
+			cursor: help;
+		}
+
+		input.regular-text { /* options template - input fields */
+			min-width: 7em;
+			width: 100%;
+		}
+
+		tr[id$='-template'] { /* option template - master input row */
+			display: none;
+		}
+	}
+	
+	& .shared { /* shared x-plugin */
+		width: 30px;
+		height: 30px;
+		cursor: pointer;
+
+		&:before {
+			line-height: 30px;
+			font-size: 24px;
+		}
+	}
+	@media screen and (max-width: 782px) {
+
+		& .form-table td .shared-option + input {
+			display: inline-block;
+			max-width: calc(100% - 42px);
+		}
+
+		& .shared {
+			width: 40px;
+			height: 40px;
+
+			&:before {
+				line-height: 40px;
+				font-size: 32px;
+			}
+		}
+	}
+}
+
+/* plugin information */
+div.th23-admin-about {
+	position: relative;
+	margin-top: 1.5em;
+	border: 1px solid #ccd0d4;
+	border-left: 4px solid #00a0d2;
+	box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1);
+	background-color: #ffffff;
+	padding: 1px 12px;
+
+	.icon {
+		position: absolute;
+		top: calc(50% - 24px);
+		width: auto;
+		height: 48px;
+
+		& + p {
+			margin-left: 64px;
+		}
+	}
+
+	a {
+		text-decoration: none;
+	}
+}

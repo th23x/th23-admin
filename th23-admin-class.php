@@ -2,9 +2,9 @@
 /*
 th23 Admin
 Basic admin functionality
-Version: 1.4.0
+Version: 1.5.0
 
-Coded 2024 by Thorsten Hartmann (th23)
+Coded 2024-2025 by Thorsten Hartmann (th23)
 https://th23.net/
 
 see th23-example-admin.php file for documentation of options
@@ -17,7 +17,7 @@ if(!defined('ABSPATH')) {
 
 class th23_admin {
 
-	public $version = '1.4.0';
+	public $version = '1.5.0';
 
 	private $parent;
 	private $kses = array();
@@ -439,6 +439,8 @@ class th23_admin {
 			check_admin_referer('th23_admin_settings', 'th23-admin-settings-nonce');
 
 			$new_options = $this->get_options($this->parent->options, true);
+			// always keep current plugin stored as (invisible) option value to be able to detect updates
+			$new_options['version'] = $this->plugin['version'];
 			// re-acquire options from DB to ensure we check against unfiltered options (in case filters are allowed somewhere)
 			$options_unfiltered = (array) get_option($this->parent->plugin['slug']);
 			if($new_options != $options_unfiltered) {
