@@ -16,7 +16,7 @@ The `th23 Admin` class allows you to
 * Define plugin settings via one central array - allowing for a **wide range of default inputs** eg text, radio buttons, checkboxes, dropdowns, lists, as well as **custom rendered content** eg images to select from, etc
 * Show **settings and support** opportunities prominently on the plugin overview page as well as the plugin settings page
 * Leverage prepared **install / uninstall** hooks - to execute code when your plugin is added / removed
-* Leverage prepared **pre-update / post-update** hook - to ensure certain changes are made eg to the database upon later versions of your plugin
+* Enable **plugin update detection** via plugin version stored with settings - to allow specific code running after updates to eg change database structure or previous settings
 * Add **screen options and help tabs** to your plugins settings page
 
 
