@@ -1,5 +1,13 @@
 jQuery(document).ready(function($){
 
+	// handle dismissable notices
+	$('.th23-notice.is-dismissible').each(function() {
+		var notice = $(this);
+		$('button.notice-dismiss', this).click(function() {
+			notice.fadeTo( 100, 0, function() { notice.slideUp( 100, function() { notice.remove(); }); });
+		});
+	});
+
 	// handle changes of screen options
 	$('#th23-admin-screen-options input').change(function() {
 		var data = {

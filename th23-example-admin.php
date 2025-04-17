@@ -106,11 +106,15 @@ class th23_example_admin extends th23_example {
 		/* optional: url of support page linked on plugin overview and new admin page, eg WP repository forum, GitHub issues page or own website */
 		$this->plugin['support_url'] = 'https://th23.net/th23-example-support/';
 		$this->plugin['requirement_notices'] = array();
+		/* optional: alternative url to check for plugin updates - must point towards an update.json file, see th23 Plugin Info class
+		unset or empty = no separate update server, all (regular) checks target main WP.org repository
+		*/
+		$this->plugin['update_url'] = 'https://github.com/th23x/th23-contact/releases/latest/download/update.json';
 
 		// Load and setup required th23 Admin class
 		if(file_exists($this->plugin['dir_path'] . '/inc/th23-admin-class.php')) {
 			require($this->plugin['dir_path'] . '/inc/th23-admin-class.php');
-			$admin = new th23_admin($this);
+			$admin = new th23_admin_v000($this);
 		}
 		if(class_exists('th23_admin') && !empty($admin)) {
 			add_action('init', array(&$this, 'setup_admin_class'));
