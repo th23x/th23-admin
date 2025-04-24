@@ -2,7 +2,7 @@
 /*
 th23 Admin
 Basic admin functionality
-Version: 1.6.0
+Version: 1.6.1
 
 Coded 2024-2025 by Thorsten Hartmann (th23)
 https://th23.net/
@@ -15,8 +15,8 @@ if(!defined('ABSPATH')) {
     exit;
 }
 
-if(!class_exists('th23_admin_v160')) {
-	class th23_admin_v160 {
+if(!class_exists('th23_admin_v161')) {
+	class th23_admin_v161 {
 
 		private $parent;
 		private $data = array();
@@ -28,7 +28,7 @@ if(!class_exists('th23_admin_v160')) {
 
 			// define allowed html tags for some elements
 			$this->data['kses'] = array();
-			$this->data['kses']['label'] = array('label' => array('for' => array()));
+			$this->data['kses']['label'] = array('label' => array('for' => array()), 'code' => array());
 			// note: data-target, data-copy and data-shared attributes are used for cross-plugin and suggested settings
 			$this->data['kses']['link'] = array('a' => array('href' => array(), 'title' => array(), 'class' => array(), 'target' => array(), 'data-target' => array(), 'data-shared' => array(), 'data-copy' => array()));
 			$this->data['kses']['format'] = array('strong' => array(), 'em' => array(), 'span' => array('style' => array(), 'title' => array(), 'class' => array()));
@@ -236,6 +236,7 @@ if(!class_exists('th23_admin_v160')) {
 		function show_screen_options($html, $screen) {
 			$html .= '<div id="th23-admin-screen-options">';
 			$html .= '<input type="hidden" id="th23-admin-screen-options-nonce" value="' . wp_create_nonce('th23-admin-screen-options-nonce') . '" />';
+			$html .= '<input type="hidden" id="th23-admin-screen-options-plugin" value="' . esc_attr($this->parent->plugin['slug']) . '" />';
 			$html .= $this->get_screen_options(true);
 			$html .= '</div>';
 			return $html;
@@ -252,16 +253,16 @@ if(!class_exists('th23_admin_v160')) {
 				$type = gettype($details['default']);
 				$value = (isset($user[$option]) && gettype($user[$option]) == $type) ? $user[$option] : $details['default'];
 				if($html) {
-					$name = 'th23_admin_screen_options_' . $option;
-					$class = 'th23-admin-screen-option-' . $option;
+					$name = esc_attr('th23_admin_screen_options_' . $option);
+					$class = esc_attr('th23-admin-screen-option-' . $option);
 					if('boolean' == $type) {
 						$checked = (!empty($value)) ? ' checked="checked"' : '';
 						$screen_options .= '<fieldset class="' . $name . '"><label><input name="' . $name .'" id="' . $name .'" value="1" type="checkbox"' . $checked . ' data-class="' . $class . '">' . esc_html($details['title']) . '</label></fieldset>';
 					}
 					elseif('integer' == $type) {
-						$min_max = (isset($details['range']['min'])) ? ' min="' . $details['range']['min'] . '"' : '';
-						$min_max .= (isset($details['range']['max'])) ? ' max="' . $details['range']['max'] . '"' : '';
-						$screen_options .= '<fieldset class="' . $name . '"><label for="' . $name . '">' . esc_html($details['title']) . '</label><input id="' . $name . '" name="' . $name . '" type="number"' . $min_max . ' value="' . $value . '" data-class="' . $class . '" /></fieldset>';
+						$min_max = (isset($details['range']['min'])) ? ' min="' . esc_attr($details['range']['min']) . '"' : '';
+						$min_max .= (isset($details['range']['max'])) ? ' max="' . esc_attr($details['range']['max']) . '"' : '';
+						$screen_options .= '<fieldset class="' . $name . '"><label for="' . $name . '">' . esc_html($details['title']) . '</label><input id="' . $name . '" name="' . $name . '" type="number"' . $min_max . ' value="' . esc_attr($value) . '" data-class="' . $class . '" /></fieldset>';
 					}
 					elseif('string' == $type) {
 						$screen_options .= '<fieldset class="' . $name . '"><label for="' . $name . '">' . esc_html($details['title']) . '</label><input id="' . $name . '" name="' . $name . '" type="text" value="' . esc_attr($value) . '" data-class="' . $class . '" /></fieldset>';
@@ -275,7 +276,7 @@ if(!class_exists('th23_admin_v160')) {
 		}
 		// update user preference for screen options via AJAX
 		function set_screen_options() {
-			if(!empty($_POST['nonce']) || wp_verify_nonce($_POST['nonce'], 'th23-admin-screen-options-nonce')) {
+			if(!empty($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], 'th23-admin-screen-options-nonce')) {
 				$screen_options = $this->get_screen_options();
 				$new = array();
 				foreach($screen_options as $option => $value) {
@@ -292,10 +293,10 @@ if(!class_exists('th23_admin_v160')) {
 						}
 					}
 					else {
-						$screen_options[$option] = (!empty($_POST[$name])) ? settype(sanitize_text_field($_POST[$name]), gettype($value)) : $value;
+						$screen_options[$option] = (!empty($_POST[$name])) ? settype(sanitize_text_field(wp_unslash($_POST[$name])), gettype($value)) : $value;
 					}
 				}
-				update_user_meta(get_current_user_id(), 'th23_admin_screen_options-' . $this->parent->plugin['slug'], $screen_options);
+				update_user_meta(get_current_user_id(), 'th23_admin_screen_options-' . sanitize_text_field(wp_unslash($_POST['plugin'])), $screen_options);
 			}
 			wp_die();
 		}
@@ -334,7 +335,7 @@ if(!class_exists('th23_admin_v160')) {
 					// create complete list of all elements - those from previous settings (re-activation), overruled by (most recent) defaults and merged with any possible user input
 					$elements = array_keys($default);
 					if($html_input && !empty($option_details['extendable']) && !empty($_POST['input_' . $option . '_elements'])) {
-						$elements = array_merge($elements, explode(',', sanitize_text_field($_POST['input_' . $option . '_elements'])));
+						$elements = array_merge($elements, explode(',', sanitize_text_field(wp_unslash($_POST['input_' . $option . '_elements']))));
 					}
 					else {
 						$elements = array_merge(array_keys($options[$option]), $elements);
@@ -364,10 +365,10 @@ if(!class_exists('th23_admin_v160')) {
 								if(isset($_POST['input_' . $option . '_' . $element . '_' . $sub_option])) {
 									// if only single value allowed, only take first element from value array for validation
 									if($sub_type == 'single' && is_array($_POST['input_' . $option . '_' . $element . '_' . $sub_option])) {
-										$value = stripslashes(sanitize_text_field(reset($_POST['input_' . $option . '_' . $element . '_' . $sub_option])));
+										$value = sanitize_text_field(wp_unslash(reset($_POST['input_' . $option . '_' . $element . '_' . $sub_option])));
 									}
 									else {
-										$value = stripslashes(sanitize_text_field($_POST['input_' . $option . '_' . $element . '_' . $sub_option]));
+										$value = sanitize_text_field(wp_unslash($_POST['input_' . $option . '_' . $element . '_' . $sub_option]));
 									}
 								}
 								// avoid empty items filled with default - will be filled with default in case empty/0 is not allowed for single by validation
@@ -413,16 +414,20 @@ if(!class_exists('th23_admin_v160')) {
 						if(isset($_POST['input_' . $option])) {
 							// if only single value allowed, only take first element from value array for validation
 							if($type == 'single' && is_array($_POST['input_' . $option])) {
-								$value = stripslashes(sanitize_text_field(reset($_POST['input_' . $option])));
+								$value = sanitize_text_field(wp_unslash(reset($_POST['input_' . $option])));
 							}
 							elseif($type == 'multiple' && is_array($_POST['input_' . $option])) {
 								$value = array();
 								foreach($_POST['input_' . $option] as $key => $val) {
-									$value[$key] = stripslashes(sanitize_text_field($val));
+									$value[$key] = sanitize_text_field(wp_unslash($val));
 								}
 							}
+							// for textarea preserve linebreaks
+							elseif(!empty($option_details['element']) && 'textarea' == $option_details['element']) {
+								$value = sanitize_textarea_field(wp_unslash($_POST['input_' . $option]));
+							}
 							else {
-								$value = stripslashes(sanitize_text_field($_POST['input_' . $option]));
+								$value = sanitize_text_field(wp_unslash($_POST['input_' . $option]));
 							}
 						}
 						// avoid empty items filled with default - will be filled with default in case empty/0 is not allowed for single by validation
@@ -519,7 +524,7 @@ if(!class_exists('th23_admin_v160')) {
 						$form_classes[] = 'th23-admin-screen-option-' . $option;
 					}
 					elseif(!empty($value)) {
-						$form_classes[] = 'th23-admin-screen-option-' . $option . '-' . esc_attr(str_replace(' ', '_', $value));
+						$form_classes[] = 'th23-admin-screen-option-' . $option . '-' . str_replace(' ', '_', $value);
 					}
 				}
 			}
@@ -695,7 +700,7 @@ if(!class_exists('th23_admin_v160')) {
 									}
 									$sub_option_details['attributes']['disabled'] = 'disabled';
 									// show full value in title, as field is disabled and thus sometimes not scrollable
-									$sub_option_details['attributes']['title'] = esc_attr($this->parent->options[$option][$element][$sub_option]);
+									$sub_option_details['attributes']['title'] = $this->parent->options[$option][$element][$sub_option];
 								}
 								// set to template defined default, if not yet set (eg options added via filter before first save)
 								elseif(!isset($this->parent->options[$option][$element][$sub_option])) {
@@ -738,32 +743,42 @@ if(!class_exists('th23_admin_v160')) {
 					echo '<table class="form-table"><tbody>';
 				}
 
-				// Build input field and output option row
+				// build input field and output option row
 				if(!isset($this->parent->options[$option])) {
 					// might not be set upon fresh activation
 					$this->parent->options[$option] = $default_value;
 				}
 				$html = $this->build_input_field($option, $option_details, $key, $default_value, $this->parent->options[$option]);
 				if(!empty($html)) {
-					echo '<tr id="' . esc_attr($option) . '-row" class="option option-' . esc_attr($option . $child_class) . '" valign="top" style="' . esc_attr($no_show_style) . '">';
-					$option_title = (!empty($option_details['title'])) ? $option_details['title'] : '';
-					if(!isset($option_details['element']) || ($option_details['element'] != 'checkbox' && $option_details['element'] != 'radio')) {
-						$brackets = (isset($option_details['element']) && ($option_details['element'] == 'list' || $option_details['element'] == 'dropdown')) ? '[]' : '';
-						$option_title = '<label for="input_' . $option . $brackets . '">' . $option_title . '</label>';
-					}
-					echo '<th scope="row">' . wp_kses($option_title, $this->data['kses']['label']) . '</th>';
-					echo '<td><fieldset>';
-					// Rendering additional field content via callback function
+					// insert additionaly rendered field content via callback function before normal input field html
 					// passing on to callback function as parameters: $default_value = default value, $this->parent->options[$option] = current value
+					$html_rendered = '';
 					if(!empty($option_details['render'])) {
 						$render = $option_details['render'];
 						if(is_string($render) && method_exists($this->parent, $render)) {
-							$html = $this->parent->$render($default_value, $this->parent->options[$option]) . $html;
+							$html_rendered = $this->parent->$render($default_value, $this->parent->options[$option]);
 						}
+						// anonymous functions
 						elseif(is_callable($render)) {
-							$html = $render($default_value, $this->parent->options[$option]) . $html;
+							$html_rendered = $render($default_value, $this->parent->options[$option]);
 						}
 					}
+					$html = $html_rendered . $html;
+					// hide row in case it is only a hidden input element and there is no additional html content rendered
+					// note: to keep field hidden all the time do not put it in attributes / data-childs, even if it belongs to group
+					if(!empty($option_details['element']) && 'hidden' == $option_details['element'] && empty($html_rendered)) {
+						$no_show_style = 'display: none;';
+					}
+					// put together option row html
+					echo '<tr id="' . esc_attr($option . '-row') . '" class="' . esc_attr('option option-' . $option . $child_class) . '" valign="top" style="' . esc_attr($no_show_style) . '">';
+					$option_title = (!empty($option_details['title'])) ? $option_details['title'] : '';
+					if(!isset($option_details['element']) || ($option_details['element'] != 'checkbox' && $option_details['element'] != 'radio')) {
+						$brackets = (isset($option_details['element']) && ($option_details['element'] == 'list' || $option_details['element'] == 'dropdown')) ? '[]' : '';
+						// note: option title is html escaped in whole below
+						$option_title = '<label for="' . esc_attr('input_' . $option . $brackets) . '">' . $option_title . '</label>';
+					}
+					echo '<th scope="row">' . wp_kses($option_title, $this->data['kses']['label']) . '</th>';
+					echo '<td><fieldset>';
 					/* reviewer: html content is html escaped at source */
 					echo $html;
 					if(!empty($option_details['description'])) {
@@ -898,39 +913,39 @@ if(!class_exists('th23_admin_v160')) {
 				foreach($option_details['default'] as $value => $text) {
 					// special handling for yes/no checkboxes
 					if(!empty($text)){
-						$html .= '<div><label><input name="' . $element_name . '" id="' . $element_name . '_' . $value . '" value="' . $value . '" ';
+						$html .= '<div><label><input name="' . esc_attr($element_name) . '" id="' . esc_attr($element_name . '_' . $value) . '" value="' . esc_attr($value) . '" ';
 						foreach(array_merge($element_attributes_suggested, $option_details['attributes'], $element_attributes) as $attr => $attr_value) {
-							$html .= $attr . '="' . $attr_value . '" ';
+							$html .= esc_attr($attr) . '="' . esc_attr($attr_value) . '" ';
 						}
 						$html .= (in_array($value, $checked)) ? 'checked="checked" ' : '';
-						$html .= '/>' . $text . '</label></div>';
+						$html .= '/>' . wp_kses($text, $this->data['kses']['label']) . '</label></div>';
 					}
 				}
 				$html .= '</div>';
 			}
 			// handle repetitive elements (dropdowns and lists)
 			elseif($option_details['element'] == 'list' || $option_details['element'] == 'dropdown') {
-				$html .= '<select name="' . $element_name . '" id="' . $element_name . '" ';
+				$html .= '<select name="' . esc_attr($element_name) . '" id="' . esc_attr($element_name) . '" ';
 				foreach(array_merge($element_attributes_suggested, $option_details['attributes'], $element_attributes) as $attr => $attr_value) {
-					$html .= $attr . '="' . $attr_value . '" ';
+					$html .= esc_attr($attr) . '="' . esc_attr($attr_value) . '" ';
 				}
 				$html .= '>';
 				$selected = ($option_details['element'] == 'dropdown') ? array($current_value) : $current_value;
 				foreach($option_details['default'] as $value => $text) {
-					$html .= '<option value="' . $value . '"';
+					$html .= '<option value="' . esc_attr($value) . '"';
 					$html .= (in_array($value, $selected)) ? ' selected="selected"' : '';
-					$html .= '>' . $text . '</option>';
+					$html .= '>' . esc_html($text) . '</option>';
 				}
 				$html .= '</select>';
 				if($option_details['element'] == 'dropdown' && !empty($option_details['unit'])) {
-					$html .= '<span class="unit">' . $option_details['unit'] . '</span>';
+					$html .= '<span class="unit">' . esc_html($option_details['unit']) . '</span>';
 				}
 			}
 			// textareas
 			elseif($option_details['element'] == 'textarea') {
-				$html .= '<textarea name="' . $element_name . '" id="' . $element_name . '" ';
+				$html .= '<textarea name="' . esc_attr($element_name) . '" id="' . esc_attr($element_name) . '" ';
 				foreach(array_merge($element_attributes_suggested, $option_details['attributes'], $element_attributes) as $attr => $attr_value) {
-					$html .= $attr . '="' . $attr_value . '" ';
+					$html .= esc_attr($attr) . '="' . esc_attr($attr_value) . '" ';
 				}
 				$html .= '>' . esc_textarea($current_value) . '</textarea>';
 			}
@@ -942,16 +957,16 @@ if(!class_exists('th23_admin_v160')) {
 					$shared_options = get_option('th23_shared');
 					if(!empty($shared_options[$option]) && $current_value != $shared_options[$option]['value'] && $this->parent->plugin['data']['Name'] != $shared_options[$option]['plugin']) {
 						$html .= '<span class="shared-option"></span>';
-						$shared = '<span class="shared dashicons dashicons-edit" data-target="' . $element_name . '" data-shared="' . $shared_options[$option]['value'] . '" title="' . esc_html(sprintf($this->__('Copy from %s'), $shared_options[$option]['plugin'])) . '"></span>';
+						$shared = '<span class="shared dashicons dashicons-edit" data-target="' . esc_attr($element_name) . '" data-shared="' . $shared_options[$option]['value'] . '" title="' . esc_attr(sprintf($this->__('Copy from %s'), $shared_options[$option]['plugin'])) . '"></span>';
 					}
 				}
-				$html .= '<input name="' . $element_name . '" id="' . $element_name . '" ';
+				$html .= '<input name="' . esc_attr($element_name) . '" id="' . esc_attr($element_name) . '" ';
 				foreach(array_merge($element_attributes_suggested, $option_details['attributes'], $element_attributes) as $attr => $attr_value) {
-					$html .= $attr . '="' . $attr_value . '" ';
+					$html .= esc_attr($attr) . '="' . esc_attr($attr_value) . '" ';
 				}
 				$html .= 'value="' . esc_attr($current_value) . '" />';
 				if(!empty($option_details['unit'])) {
-					$html .= '<span class="unit">' . $option_details['unit'] . '</span>';
+					$html .= '<span class="unit">' . esc_html($option_details['unit']) . '</span>';
 				}
 				// shared x-plugin
 				$html .= $shared;

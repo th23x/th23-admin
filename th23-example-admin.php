@@ -3,7 +3,7 @@
 th23 Example
 Admin area leveraging th23 Admin class
 
-Coded 2024 by Thorsten Hartmann (th23)
+Coded 2024-2025 by Thorsten Hartmann (th23)
 https://th23.net/
 
 note: This is NOT intended to be a fully working meaningful admin script, but rather a summary of possibilities with examples!
@@ -108,6 +108,7 @@ class th23_example_admin extends th23_example {
 		$this->plugin['requirement_notices'] = array();
 		/* optional: alternative url to check for plugin updates - must point towards an update.json file, see th23 Plugin Info class
 		unset or empty = no separate update server, all (regular) checks target main WP.org repository
+		note: WP.org plugin repository does not allow plugins including own update sources - to comply do NOT populate this update_url AND remove filter from "site_transient_update_plugins" in th23-admin-class.php
 		*/
 		$this->plugin['update_url'] = 'https://github.com/th23x/th23-contact/releases/latest/download/update.json';
 

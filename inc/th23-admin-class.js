@@ -12,6 +12,7 @@ jQuery(document).ready(function($){
 	$('#th23-admin-screen-options input').change(function() {
 		var data = {
 			action: 'th23_admin_screen_options',
+			plugin: $('#th23-admin-screen-options-plugin').val(),
 			nonce: $('#th23-admin-screen-options-nonce').val(),
 		};
 		// add screen option fields to data dynamically
