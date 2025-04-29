@@ -2,7 +2,7 @@
 /*
 th23 Admin
 Basic admin functionality
-Version: 1.6.1
+Version: 1.6.2
 
 Coded 2024-2025 by Thorsten Hartmann (th23)
 https://th23.net/
@@ -15,8 +15,8 @@ if(!defined('ABSPATH')) {
     exit;
 }
 
-if(!class_exists('th23_admin_v161')) {
-	class th23_admin_v161 {
+if(!class_exists('th23_admin_v162')) {
+	class th23_admin_v162 {
 
 		private $parent;
 		private $data = array();
@@ -54,18 +54,25 @@ if(!class_exists('th23_admin_v161')) {
 			if(!empty($this->parent->plugin['update_url'])) {
 				// add option to select alternative update source
 				$this->parent->plugin['options']['update_url'] = array(
+					'section' => (!empty($this->parent->plugin['update_section'])) ? $this->__('Plugin') : '',
 					'title' => $this->__('Updates'),
 					'description' => $this->__('If disabled or unreachable, updates will use default WordPress repository'),
 					'element' => 'checkbox',
 					'default' => array(
 						'single' => 1,
 						0 => '',
+						/* translators: parses in repository url */
 						1 => sprintf($this->__('Update from %s'), '<code>' . $this->parent->plugin['update_url'] . '</code>'),
 					),
 				);
-				add_filter('plugins_api', array(&$this, 'update_info'), 20, 3);
-				add_filter('site_transient_update_plugins', array(&$this, 'update_download'));
-				add_action('upgrader_process_complete', array(&$this, 'update_cache'), 10, 2);
+				if(!empty($this->parent->options['update_url'])) {
+					// replace plugin row info / links to ensure detailed info from alternative source is available
+					// note: hook early to allow other modifications based on this eg adding support link and requirement notices
+					add_filter('plugin_row_meta', array(&$this, 'update_details'), 1, 4);
+					add_filter('plugins_api', array(&$this, 'update_info'), 20, 3);
+					add_filter('site_transient_update_plugins', array(&$this, 'update_download'));
+					add_action('upgrader_process_complete', array(&$this, 'update_cache'), 10, 2);
+				}
 			}
 
 			// Add settings page and JS/ CSS
@@ -104,7 +111,7 @@ if(!class_exists('th23_admin_v161')) {
 		}
 
 		// Add supporting information (eg links and notices) to plugin row in plugin overview page
-		// note: Any CSS styling needs to be "hardcoded" here as plugin CSS might not be loaded (e.g. when plugin deactivated)
+		// note: CSS styling needs to be "hardcoded" here as plugin CSS might not be loaded (e.g. when plugin deactivated)
 		function contact_link($links, $file) {
 			if($this->parent->plugin['basename'] == $file) {
 				// Add support link
@@ -125,10 +132,38 @@ if(!class_exists('th23_admin_v161')) {
 		}
 
 		// Set plugin repository for plugin info and update
+		// Replace plugin row info / links to ensure detailed info from alternative source is available
+		function update_details($links, $file, $data, $status) {
+			if($this->parent->plugin['basename'] == $file) {
+				$links = array();
+				// replicate default version and author
+				if(!empty($data['Version'])) {
+					/* translators: parses in plugin version number */
+					$links[] = sprintf($this->__('Version %s'), $data['Version']);
+				}
+				if(!empty($data['Author'])) {
+					$author = $data['Author'];
+					if(!empty($data['AuthorURI'])) {
+						$author = '<a href="' . $data['AuthorURI'] . '">' . $data['Author'] . '</a>';
+					}
+					/* translators: parses in plugin author name / link */
+					$links[] = sprintf($this->__('By %s'), $author);
+				}
+				// add detailed info independed from source - original code only focuses on WP.org repository
+				if(current_user_can('install_plugins')) {
+					$links[] = '<a href="' . esc_url(network_admin_url('plugin-install.php?tab=plugin-information&plugin=' . $this->parent->plugin['slug'] . '&TB_iframe=true&width=600&height=550')) . '" class="thickbox open-plugin-details-modal" data-title="' . esc_attr($data['Name']) . '">' . $this->__('View details') . '</a>';
+				}
+				elseif(!empty($data['PluginURI'])) {
+					$links[] = '<a href="' . esc_url($data['PluginURI']) . '">' . $this->__('Visit plugin site') . '</a>';
+				}
+			}
+			return $links;
+		}
+
 		// Get plugin (update) information
 		function update_info($res, $action, $args) {
-			// no action, if no own repository to check or no plugin information request for this plugin
-			if(empty($this->parent->plugin['update_url']) || empty($this->parent->options['update_url']) || 'plugin_information' !== $action || $this->parent->plugin['slug'] !== $args->slug) {
+			// no action, if no plugin information request for this plugin
+			if('plugin_information' !== $action || $this->parent->plugin['slug'] !== $args->slug) {
 				return $res;
 			}
 			// attempt to get, defaults back to WP.org repository if own repository is unreachable by returning $res
@@ -957,6 +992,7 @@ if(!class_exists('th23_admin_v161')) {
 					$shared_options = get_option('th23_shared');
 					if(!empty($shared_options[$option]) && $current_value != $shared_options[$option]['value'] && $this->parent->plugin['data']['Name'] != $shared_options[$option]['plugin']) {
 						$html .= '<span class="shared-option"></span>';
+						/* translators: parses in plugin name */
 						$shared = '<span class="shared dashicons dashicons-edit" data-target="' . esc_attr($element_name) . '" data-shared="' . $shared_options[$option]['value'] . '" title="' . esc_attr(sprintf($this->__('Copy from %s'), $shared_options[$option]['plugin'])) . '"></span>';
 					}
 				}
