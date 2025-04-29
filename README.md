@@ -84,7 +84,7 @@ print_r($options); // echo options array
 
 ## 🤝 Contributors
 
-Feel free to [raise issues](/issues) or [contribute code](/pulls) for improvements via GitHub.
+Feel free to [raise issues](https://github.com/th23x/th23-admin/issues) or [contribute code](https://github.com/th23x/th23-admin/pulls) for improvements via GitHub.
 
 
 ## ©️ License
