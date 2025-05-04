@@ -2,7 +2,7 @@
 /*
 th23 Admin
 Basic admin functionality
-Version: 1.6.2
+Version: 1.7.0
 
 Coded 2024-2025 by Thorsten Hartmann (th23)
 https://th23.net/
@@ -15,8 +15,8 @@ if(!defined('ABSPATH')) {
     exit;
 }
 
-if(!class_exists('th23_admin_v162')) {
-	class th23_admin_v162 {
+if(!class_exists('th23_admin_v170')) {
+	class th23_admin_v170 {
 
 		private $parent;
 		private $data = array();
@@ -50,29 +50,14 @@ if(!class_exists('th23_admin_v162')) {
 			add_filter('plugin_action_links_' . $this->parent->plugin['basename'], array(&$this, 'settings_link'), 10);
 			add_filter('plugin_row_meta', array(&$this, 'contact_link'), 10, 2);
 
-			// Set plugin repository for plugin info and update
+			// Handle plugin repository for plugin info and update for non-WP.org hosted plugin
+			// note: "update_url" and main filter for site_transient... have to be set by the plugin admin script
 			if(!empty($this->parent->plugin['update_url'])) {
-				// add option to select alternative update source
-				$this->parent->plugin['options']['update_url'] = array(
-					'section' => (!empty($this->parent->plugin['update_section'])) ? $this->__('Plugin') : '',
-					'title' => $this->__('Updates'),
-					'description' => $this->__('If disabled or unreachable, updates will use default WordPress repository'),
-					'element' => 'checkbox',
-					'default' => array(
-						'single' => 1,
-						0 => '',
-						/* translators: parses in repository url */
-						1 => sprintf($this->__('Update from %s'), '<code>' . $this->parent->plugin['update_url'] . '</code>'),
-					),
-				);
-				if(!empty($this->parent->options['update_url'])) {
-					// replace plugin row info / links to ensure detailed info from alternative source is available
-					// note: hook early to allow other modifications based on this eg adding support link and requirement notices
-					add_filter('plugin_row_meta', array(&$this, 'update_details'), 1, 4);
-					add_filter('plugins_api', array(&$this, 'update_info'), 20, 3);
-					add_filter('site_transient_update_plugins', array(&$this, 'update_download'));
-					add_action('upgrader_process_complete', array(&$this, 'update_cache'), 10, 2);
-				}
+				// replace plugin row info / links to ensure detailed info from alternative source is available
+				// note: hook early to allow other modifications based on this eg adding support link and requirement notices
+				add_filter('plugin_row_meta', array(&$this, 'update_details'), 1, 4);
+				add_filter('plugins_api', array(&$this, 'update_info'), 20, 3);
+				add_action('upgrader_process_complete', array(&$this, 'update_cache'), 10, 2);
 			}
 
 			// Add settings page and JS/ CSS
@@ -166,8 +151,13 @@ if(!class_exists('th23_admin_v162')) {
 			if('plugin_information' !== $action || $this->parent->plugin['slug'] !== $args->slug) {
 				return $res;
 			}
-			// attempt to get, defaults back to WP.org repository if own repository is unreachable by returning $res
-			if(empty($remote = $this->update_request()) || !is_array($remote)) {
+			// note: returning $res defaults to WP.org repo, if exists and alternative is unreachable - nevertheless return error message, as versions might differ
+			if(empty($remote = $this->update_request(true)) || !is_array($remote)) {
+				$res = new stdClass();
+				$res->slug = $this->parent->plugin['slug'];
+				$res->name = $this->parent->plugin['data']['Name'];
+				/* translators: parses in plugin information source url */
+				$res->sections = array('other_notes' => '<div class="notice notice-error"><p>' . sprintf($this->__('Failed to load plugin information from %s'), '<code>' . $this->parent->plugin['update_url'] . '</code>') . '</p></div>');
 				return $res;
 			}
 			// convert top array from response to class structure
@@ -179,9 +169,9 @@ if(!class_exists('th23_admin_v162')) {
 		}
 
 		// Retrieve plugin (update) information from cache or download from repository
-		function update_request() {
+		function update_request($refresh = false) {
 			$json = get_transient($this->parent->plugin['slug'] . '_update_cache');
-			if(false === $json) {
+			if(false === $json || true == $refresh) {
 				$remote = wp_remote_get($this->parent->plugin['update_url'], array('timeout' => 10, 'headers' => array('Accept' => 'application/json')));
 				if(is_wp_error($remote) || 200 !== wp_remote_retrieve_response_code($remote) || empty($json = wp_remote_retrieve_body($remote))) {
 					return false;
@@ -194,15 +184,18 @@ if(!class_exists('th23_admin_v162')) {
 
 		// Insert plugin (update) information into data passed to wp updater
 		function update_download($transient) {
-			// plugin participates in update checks
-			if(empty($transient->checked[$this->parent->plugin['basename']])) {
+			// plugin has own update url and participates in update checks
+			if(empty($this->parent->plugin['update_url']) || empty($transient->checked[$this->parent->plugin['basename']])) {
 				return $transient;
 			}
+			// ignore responses from default Wordpress repository
+			unset($transient->response[$this->parent->plugin['basename']]);
+			unset($transient->no_update[$this->parent->plugin['basename']]);
 			// not yet checked during current page load - check if update available
 			if(empty($this->data['update_cache'])) {
-				$this->data['update_cache'] = 'no_update_available';
-				// check if newer version is available and required wp and php versions are met
-				if(!empty($plugin = $this->update_request()) && is_array($plugin) && version_compare($this->parent->plugin['version'], $plugin['version'], '<') && version_compare($plugin['requires'], get_bloginfo('version'), '<=') && version_compare($plugin['requires_php'], PHP_VERSION, '<')) {
+				$this->data['update_cache'] = array();
+				// update server contacted and valid response received
+				if(!empty($plugin = $this->update_request()) && is_array($plugin)) {
 					$res = new stdClass();
 					$res->id = $this->parent->plugin['slug'];
 					$res->slug = $this->parent->plugin['slug'];
@@ -215,14 +208,24 @@ if(!class_exists('th23_admin_v162')) {
 					$res->tested = $plugin['tested'];
 					$res->icons = (!empty($plugin['icons'])) ? $plugin['icons'] : array();
 					$res->banners = (!empty($plugin['banners'])) ? $plugin['banners'] : array();
-					// store answer for further checks during this page load
-					$this->data['update_cache'] = $res;
-					$transient->response[$this->parent->plugin['basename']] = $this->data['update_cache'];
+					$this->data['update_cache']['plugin_info'] = $res;
+					// newer version available and required wp and php versions are met
+					if(version_compare($this->parent->plugin['version'], $plugin['version'], '<') && version_compare($plugin['requires'], get_bloginfo('version'), '<=') && version_compare($plugin['requires_php'], PHP_VERSION, '<')) {
+						$this->data['update_cache']['status'] = 'update_available';
+					}
+					else {
+						$this->data['update_cache']['status'] = 'no_update';
+					}
 				}
 			}
-			// already checked during current page load - return cached answer
-			elseif(is_object($this->data['update_cache'])) {
-				$transient->response[$this->parent->plugin['basename']] = $this->data['update_cache'];
+			// (re-)add plugin to transient based on update availability (see above or cached)
+			if(!empty($this->data['update_cache']['plugin_info'])) {
+				if('update_available' == $this->data['update_cache']['status']) {
+					$transient->response[$this->parent->plugin['basename']] = $this->data['update_cache']['plugin_info'];
+				}
+				else {
+					$transient->no_update[$this->parent->plugin['basename']] = $this->data['update_cache']['plugin_info'];
+				}
 			}
 			return $transient;
 		}
@@ -311,7 +314,7 @@ if(!class_exists('th23_admin_v162')) {
 		}
 		// update user preference for screen options via AJAX
 		function set_screen_options() {
-			if(!empty($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], 'th23-admin-screen-options-nonce')) {
+			if(!empty($_POST['nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'th23-admin-screen-options-nonce') && !empty($_POST['plugin'])) {
 				$screen_options = $this->get_screen_options();
 				$new = array();
 				foreach($screen_options as $option => $value) {
@@ -397,13 +400,18 @@ if(!class_exists('th23_admin_v162')) {
 							}
 							// html input
 							elseif($html_input) {
-								if(isset($_POST['input_' . $option . '_' . $element . '_' . $sub_option])) {
-									// if only single value allowed, only take first element from value array for validation
-									if($sub_type == 'single' && is_array($_POST['input_' . $option . '_' . $element . '_' . $sub_option])) {
-										$value = sanitize_text_field(wp_unslash(reset($_POST['input_' . $option . '_' . $element . '_' . $sub_option])));
+								$html_input_name = 'input_' . $option . '_' . $element . '_' . $sub_option;
+								if(isset($_POST[$html_input_name])) {
+									// for textarea preserve linebreaks
+									if(!empty($sub_option_details['element']) && 'textarea' == $sub_option_details['element']) {
+										$value = sanitize_textarea_field(wp_unslash($_POST[$html_input_name]));
 									}
 									else {
-										$value = sanitize_text_field(wp_unslash($_POST['input_' . $option . '_' . $element . '_' . $sub_option]));
+										$value = (is_array($_POST[$html_input_name])) ? array_map('sanitize_text_field', wp_unslash($_POST[$html_input_name])) : sanitize_text_field(wp_unslash($_POST[$html_input_name]));
+										// if only single value allowed, only take first element from value array for validation
+										if($type == 'single' && is_array($value)) {
+											$value = reset($value);
+										}
 									}
 								}
 								// avoid empty items filled with default - will be filled with default in case empty/0 is not allowed for single by validation
@@ -447,22 +455,16 @@ if(!class_exists('th23_admin_v162')) {
 					// html input
 					if($html_input) {
 						if(isset($_POST['input_' . $option])) {
-							// if only single value allowed, only take first element from value array for validation
-							if($type == 'single' && is_array($_POST['input_' . $option])) {
-								$value = sanitize_text_field(wp_unslash(reset($_POST['input_' . $option])));
-							}
-							elseif($type == 'multiple' && is_array($_POST['input_' . $option])) {
-								$value = array();
-								foreach($_POST['input_' . $option] as $key => $val) {
-									$value[$key] = sanitize_text_field(wp_unslash($val));
-								}
-							}
 							// for textarea preserve linebreaks
-							elseif(!empty($option_details['element']) && 'textarea' == $option_details['element']) {
+							if(!empty($option_details['element']) && 'textarea' == $option_details['element']) {
 								$value = sanitize_textarea_field(wp_unslash($_POST['input_' . $option]));
 							}
 							else {
-								$value = sanitize_text_field(wp_unslash($_POST['input_' . $option]));
+								$value = (is_array($_POST['input_' . $option])) ? array_map('sanitize_text_field', wp_unslash($_POST['input_' . $option])) : sanitize_text_field(wp_unslash($_POST['input_' . $option]));
+								// if only single value allowed, only take first element from value array for validation
+								if($type == 'single' && is_array($value)) {
+									$value = reset($value);
+								}
 							}
 						}
 						// avoid empty items filled with default - will be filled with default in case empty/0 is not allowed for single by validation
@@ -559,7 +561,7 @@ if(!class_exists('th23_admin_v162')) {
 						$form_classes[] = 'th23-admin-screen-option-' . $option;
 					}
 					elseif(!empty($value)) {
-						$form_classes[] = 'th23-admin-screen-option-' . $option . '-' . str_replace(' ', '_', $value);
+						$form_classes[] = 'th23-admin-screen-option-' . $option . '-' . esc_attr(str_replace(' ', '_', $value));
 					}
 				}
 			}
@@ -853,6 +855,11 @@ if(!class_exists('th23_admin_v162')) {
 			}
 			elseif(!empty($this->parent->plugin['data']['PluginURI'])) {
 				echo ' | <a href="' . esc_url($this->parent->plugin['data']['PluginURI']) . '">' . esc_html($this->__('Visit plugin site')) . '</a>';
+			}
+			if(!empty($this->parent->plugin['update_url'])) {
+				$update_parsed = parse_url($this->parent->plugin['update_url']);
+				/* translators: parses in host / domain part of repository url for non-WP.org hosted plugin */
+				echo '<span class="floating-right"><span class="separator-left"> | </span>' . sprintf(esc_html($this->__('Updated via %s')), '<span class="update-url" title="' . esc_attr($this->parent->plugin['update_url']) . '">' . esc_html($update_parsed['host']) . '</span>') . '</span>';
 			}
 			echo '</p></div>';
 

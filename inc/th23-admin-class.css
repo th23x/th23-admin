@@ -99,6 +99,17 @@ div.th23-admin-about .icon {
 div.th23-admin-about .icon + p {
   margin-left: 64px;
 }
+@media screen and (min-width: 782px) {
+  div.th23-admin-about .floating-right {
+    float: right;
+  }
+  div.th23-admin-about .floating-right .separator-left {
+    display: none;
+  }
+}
+div.th23-admin-about .update-url {
+  cursor: pointer;
+}
 div.th23-admin-about a {
   text-decoration: none;
 }

@@ -1,10 +1,7 @@
 <?php
 /*
 th23 Example
-Admin area leveraging th23 Admin class
-
-Coded 2024-2025 by Thorsten Hartmann (th23)
-https://th23.net/
+Admin excerpt leveraging th23 Admin class
 
 note: This is NOT intended to be a fully working meaningful admin script, but rather a summary of possibilities with examples!
 */
@@ -70,6 +67,7 @@ class th23_example_admin extends th23_example {
 
 	// Extend class-wide variables
 	public $i18n;
+	private $admin;
 
 	function __construct() {
 
@@ -94,10 +92,7 @@ class th23_example_admin extends th23_example {
 			'base' => 'options-general.php',
 			'permission' => 'manage_options',
 		);
-		/* optional: icon to be shown in header / footer of the new admin page
-		"square" = footer, expects 48 x 48px
-		"horizontal" = header, expects 36px height (width irrelevant)
-		note: both will be resized, if larger
+		/* optional: icons "square" 48 x 48px (footer) and "horizontal" 36px height (header, width irrelevant) / both (resized if larger)
 		*/
 		$this->plugin['icon'] = array(
 			'square' => 'img/icon-square.png',
@@ -105,24 +100,32 @@ class th23_example_admin extends th23_example {
 		);
 		/* optional: url of support page linked on plugin overview and new admin page, eg WP repository forum, GitHub issues page or own website */
 		$this->plugin['support_url'] = 'https://th23.net/th23-example-support/';
+		/* mandatory: empty array */
 		$this->plugin['requirement_notices'] = array();
-		/* optional: alternative url to check for plugin updates - must point towards an update.json file, see th23 Plugin Info class
-		unset or empty = no separate update server, all (regular) checks target main WP.org repository
-		note: WP.org plugin repository does not allow plugins including own update sources - to comply do NOT populate this update_url AND remove filter from "site_transient_update_plugins" in th23-admin-class.php
-		*/
-		$this->plugin['update_url'] = 'https://github.com/th23x/th23-contact/releases/latest/download/update.json';
 
 		// Load and setup required th23 Admin class
 		if(file_exists($this->plugin['dir_path'] . '/inc/th23-admin-class.php')) {
 			require($this->plugin['dir_path'] . '/inc/th23-admin-class.php');
+			/* mandatory: to avoid version conflicts upon using the th23 Admin class with multiple plugins, you have to specify the version expected ie the one your plugin has been developed with, eg replacing "v000" below by "v170" */
 			$admin = new th23_admin_v000($this);
 		}
-		if(class_exists('th23_admin') && !empty($admin)) {
+		if(!empty($this->admin)) {
 			add_action('init', array(&$this, 'setup_admin_class'));
+			// alternative update source for non-WP.org hosted plugin
+			/* optional: must point towards an update.json file, see th23 Plugin Info class, leave unset or empty for no separate update server, then all (regular) checks target main WP.org repository
+			* important: WP.org plugin repository does not allow plugins including own update sources - to comply remove the two lines about "update_url" and "site_transient_update_plugins"
+			*/
+			$this->plugin['update_url'] = 'https://github.com/th23x/th23-contact/releases/latest/download/update.json';
+			add_filter('site_transient_update_plugins', array(&$this->admin, 'update_download'));
 		}
 		else {
 			add_action('admin_notices', array(&$this, 'error_admin_class'));
 		}
+
+		// Load plugin options
+		/* mandatory: this will bring in all your settings, see description for function below */
+		// note: earliest possible due to localization only available at "init" hook
+		add_action('init', array(&$this, 'init_options'));
 
 		// Check requirements
 		/* optional: function to check plugin requirements and populate requirement_notices array
@@ -137,12 +140,58 @@ class th23_example_admin extends th23_example {
 		add_action('activate_' . $this->plugin['basename'], array(&$this, 'install'));
 		add_action('deactivate_' . $this->plugin['basename'], array(&$this, 'uninstall'));
 
-		// Update
-		/* optional: functions to execute specific code before / after an upgrade of the plugin via the WP updater
-		tip: see "function pre_update" / "function post_update" further below for an example
-		*/
-		add_action('upgrader_process_complete', array(&$this, 'pre_update'), 10, 2);
-		add_action('plugins_loaded', array(&$this, 'post_update'));
+		// ... optional: hooks for plugin functionality in admin area ...
+
+	}
+
+	/* required: Setup of th23 Admin class
+	note: language strings passed on to admin class are optional - in case not provided by plugin the admin class language strings are only available in English
+	*/
+	function setup_admin_class() {
+
+		// enhance plugin info with generic plugin data
+		// note: make sure function exists as it is loaded late only, if at all - see https://developer.wordpress.org/reference/functions/get_plugin_data/
+		if(!function_exists('get_plugin_data')) {
+			require_once(ABSPATH . 'wp-admin/includes/plugin.php');
+		}
+		$this->plugin['data'] = get_plugin_data($this->plugin['file']);
+
+		// admin class is language agnostic, except translations in parent i18n variable
+		// note: need to populate $this->i18n earliest at init hook to get user locale
+		$this->i18n = array(
+			// reviewer: to keep consistency some admin language strings are used in sync with core
+			'Settings' => __('Settings'),
+			/* translators: parses in version number */
+			'Version %s' => __('Version %s'),
+			/* translators: parses in plugin name */
+			'Copy from %s' => __('Copy from %s', 'th23-example'),
+			'Support' => __('Support'),
+			'Done' => __('Done'),
+			'Settings saved.' => __('Settings saved.'),
+			'+' => __('+'),
+			'-' => __('-'),
+			'Save Changes' => __('Save Changes'),
+			/* translators: parses in author */
+			'By %s' => __('By %s'),
+			'View details' => __('View details'),
+			'Visit plugin site' => __('Visit plugin site'),
+			'Error' => __('Error'),
+			/* translators: 1: option name, 2: opening a tag of link to support/ plugin page, 3: closing a tag of link */
+			'Invalid combination of input field and default value for "%1$s" - please %2$scontact the plugin author%3$s' => __('Invalid combination of input field and default value for "%1$s" - please %2$scontact the plugin author%3$s', 'th23-example'),
+			/* translators: parses in repository url for non-WP.org hosted plugin */
+			'Updated via %s' => __('Updated via %s', 'th23-example'),
+			/* translators: parses in plugin information source url */
+			'Failed to load plugin information from %s' => __('Failed to load plugin information from %s', 'th23-example'),
+		);
+
+	}
+	function error_admin_class() {
+		/* translators: parses in names of 1: class which failed to load */
+		echo '<div class="notice notice-error"><p style="font-size: 14px;"><strong>' . esc_html($this->plugin['data']['Name']) . '</strong></p><p>' . esc_html(sprintf(__('Failed to load %1$s class', 'th23-example'), 'th23 Admin')) . '</p></div>';
+	}
+
+	// Load plugin options
+	function init_options() {
 
 		// Settings: Screen options
 		/* optional: allows user in admin to customize the settings screen
@@ -212,8 +261,10 @@ class th23_example_admin extends th23_example {
 			1) $default_value of the setting - as specified in "default", see below
 			2) $current_value of the setting
 			tip: see "function watermark_image" for an example
+			note: alternatively this can also be used to show some content before the input element and therefore use an anonymous function - see second "render" line below
 			*/
 			'render' => 'watermark_image',
+			'render' => function() { return '<label for="input_spam_engine[]">' . __('Spam detection engine', 'th23-example') . '</label> '; },
 
 			/* optional: defines the input element shown to the user to select the settings value
 			available options:
@@ -353,154 +404,158 @@ class th23_example_admin extends th23_example {
 			'default' => '',
 		);
 
-		// example: real life example from "th23 Contact" plugin - see a) to h) following
+		// example: real life example from "th23 Contact" plugin - see x) and a) to l) following
+		// x) terms of usage link / title (used more than once)
+		$terms_title = (empty($terms_title = get_option('th23_terms_title'))) ? __('Terms of Usage', 'th23-contact') : $terms_title;
+		$terms_link = (!empty($terms_url = get_option('th23_terms_url'))) ? '<a href="' . esc_url($terms_url) . '" target="_blank">' . $terms_title . '</a>' : $terms_title;
 		// a) post_ids
-		$post_ids_description = __('Limit usage of contact shortcode to selected pages / posts, reducing unnecessary CSS loading - leave empty to use on all pages and posts', 'th23-example');
-		/* translators: inserts shortcode */
-		$post_ids_description .= '<br />' . sprintf(__('Important: Requires contact shortcode %s placed in page / post to show contact form', 'th23-example'), '<code style="font-style: normal;">[th23-example]</code>');
-		$post_ids_description .= '<br />' . __('Note: Shortcode can only be used once per page / post', 'th23-example');
+		$description = __('Limit usage of contact shortcode to selected pages / posts, reducing unnecessary CSS loading - leave empty to use on all pages and posts', 'th23-contact');
+		/* translators: inserts shortcode within "<code></code>" tags */
+		$description .= '<br />' . sprintf(__('Important: Requires contact shortcode %s placed in page / post to show contact form', 'th23-contact'), '<code style="font-style: normal;">[th23-contact]</code>');
+		$description .= '<br />' . __('Note: Shortcode can only be used once per page / post', 'th23-contact');
 		$this->plugin['options']['post_ids'] = array(
-			'title' => __('Pages / Posts', 'th23-example'),
-			'description' => $post_ids_description,
+			'title' => __('Pages / Posts', 'th23-contact'),
 			'element' => 'list',
 			'default' => array(
 				'multiple' => array(''),
-				'pages' => __('All pages', 'th23-example'),
-				'posts' => __('All posts', 'th23-example'),
+				'pages' => __('All pages', 'th23-contact'),
+				'posts' => __('All posts', 'th23-contact'),
 			),
+			'description' => $description,
 			'attributes' => array(
 				'size' => 8,
 			),
 		);
 		$pages = get_pages();
 		foreach($pages as $page) {
-			/* translators: %s is page title */
-			$this->plugin['options']['post_ids']['default'][$page->ID] = esc_html(sprintf(__('Page: %s', 'th23-example'), wp_strip_all_tags($page->post_title)));
+			/* translators: parses in page title */
+			$this->plugin['options']['post_ids']['default'][$page->ID] = esc_attr(sprintf(__('Page: %s', 'th23-contact'), wp_strip_all_tags($page->post_title)));
 		}
 		$posts = get_posts(array('numberposts' => -1, 'orderby' => 'post_title', 'order' => 'ASC'));
 		foreach($posts as $post) {
-			/* translators: %s is post title */
-			$this->plugin['options']['post_ids']['default'][$post->ID] = esc_html(sprintf(__('Post: %s', 'th23-example'), wp_strip_all_tags($post->post_title)));
+			/* translators: parses in post title */
+			$this->plugin['options']['post_ids']['default'][$post->ID] = esc_attr(sprintf(__('Post: %s', 'th23-contact'), wp_strip_all_tags($post->post_title)));
 		}
 		// b) admin_email
 		$admin_email = get_option('admin_email');
 		$this->plugin['options']['admin_email'] = array(
-			'title' =>  __('Recipient', 'th23-example'),
-			/* translators: %1$s / %2$s <a> and </a> tags for link to insert admin mail, %3$s current general admin e-mail address */
-			'description' => sprintf(__('Provide mail address for contact form submissions - %1$sclick here%2$s to use your default admin e-mail address (%3$s)', 'th23-example'), '<a href="" class="copy" data-target="input_admin_email" data-copy="' . esc_attr($admin_email) . '">', '</a>', esc_html($admin_email)),
+			'title' =>  __('Recipient', 'th23-contact'),
 			'default' => '',
 			'shared' => true,
+			/* translators: %1$s / %2$s <a> and </a> tags for link to insert admin mail, %3$s current general admin e-mail address within "<code></code>" tags */
+			'description' => sprintf(__('Provide mail address for contact form submissions - %1$sclick here%2$s to use your default admin e-mail address %3$s', 'th23-contact'), '<a href="" class="copy" data-target="input_admin_email" data-copy="' . esc_attr($admin_email) . '">', '</a>', '<code>' . esc_attr($admin_email) . '</code>'),
 			'save_after' => 'save_admin_email',
 		);
 		// c) pre_subject
 		$this->plugin['options']['pre_subject'] = array(
-			'title' =>  __('Subject prefix', 'th23-example'),
-			'description' => __('Optional prefix to be added before the subject of mails sent from the contact form', 'th23-example'),
+			'title' =>  __('Subject prefix', 'th23-contact'),
 			'default' => '',
+			'description' => __('Optional prefix to be added before the subject of mails sent from the contact form', 'th23-contact'),
 		);
-		// d) visitors
-		$this->plugin['options']['visitors'] = array(
-			'title' => __('Visitors', 'th23-example'),
-			'description' => __('If disabled, unregistered visitors will see a notice requiring them to login for sending a message', 'th23-example'),
+		// d) spam_check
+		$this->plugin['options']['spam_check'] = array(
+			'title' => __('Spam check', 'th23-contact'),
 			'element' => 'checkbox',
 			'default' => array(
 				'single' => 0,
 				0 => '',
-				1 => __('Enable contact form for unregistered users', 'th23-example'),
+				1 => __('Check contact message for spam before sending', 'th23-contact'),
 			),
+			'attributes' => array(
+				'data-childs' => '.option-spam_engine,.option-spam_key',
+			),
+		);
+		// e) spam_engine
+		$description = __('Note: Selected spam detection engine does not need to be installed as plugin', 'th23-contact');
+		/* translators: parses in link with/or title to sites terms & conditions, as defined by admin */
+		$description .= '<br />' . sprintf(__('Note: Consider to include according information into %s', 'th23-contact'), $terms_link);
+		$this->plugin['options']['spam_engine'] = array(
+			'render' => function() { return '<label for="input_spam_engine[]">' . __('Spam detection engine', 'th23-contact') . '</label> '; },
+			'element' => 'dropdown',
+			'default' => array(
+				'single' => 'akismet',
+				/* translators: 1: name of service eg "Akismet", 2: provider name eg "Automattic" */
+				'akismet' => sprintf(__('%1$s by %2$s', 'th23-contact'), 'Akismet', 'Automattic'),
+			),
+			'description' => $description,
+		);
+		// f) spam_key
+		$this->plugin['options']['spam_key'] = array(
+			'render' => function() { return '<label for="input_spam_key">' . __('API key', 'th23-contact') . '</label> '; },
+			'default' => '',
+			/* translators: parses in name of service, sentence will be follow by a half sentence how to obtain the key eg " - get it from..." */
+			'description' => sprintf(__('Important: %s requires valid API key', 'th23-contact'), '<em>Akismet</em>'),
+		);
+		// g) spam_key_verified
+		$this->plugin['options']['spam_key_verified'] = array(
+			'default' => '',
+			'element' => 'hidden',
+			'save_before' => 'save_spam_key_verified',
+		);
+		// h) visitors
+		$this->plugin['options']['visitors'] = array(
+			'title' => __('Visitors', 'th23-contact'),
+			'element' => 'checkbox',
+			'default' => array(
+				'single' => 0,
+				0 => '',
+				1 => __('Enable contact form for unregistered users', 'th23-contact'),
+			),
+			'description' => __('If disabled, unregistered visitors will see a notice requiring them to login for sending a message', 'th23-contact'),
 			'attributes' => array(
 				'data-childs' => '.option-captcha,.option-terms',
 			),
 		);
-		// e) captcha
+		// i) captcha
 		$this->plugin['options']['captcha'] = array(
 			'title' => '<i>reCaptcha</i>',
-			/* translators: 1: "reCaptcha v2" as name of the service, 2: "Google" as provider name, 3/4: opening and closing tags for a link to Google reCaptcha website */
-			'description' => sprintf(__('Important: %1$s is an external service by %2$s which requires %3$ssigning up for free keys%4$s - usage will embed external scripts and transfer data to %2$s', 'th23-example'), '<i>reCaptcha v2</i>', '<i>Google</i>', '<a href="https://www.google.com/recaptcha/" target="_blank">', '</a>'),
 			'element' => 'checkbox',
 			'default' => array(
 				'single' => 0,
 				0 => '',
-				1 => __('Unregistered users need to solve a captcha for better protection against spam and bots', 'th23-example'),
+				1 => __('Unregistered users need to solve a captcha for better protection against spam and bots', 'th23-contact'),
 			),
+			/* translators: 1: "reCaptcha v2" as name of the service, 2: "Google" as provider name, 3/4: opening and closing tags for a link to Google reCaptcha website */
+			'description' => sprintf(__('Important: %1$s is an external service by %2$s which requires %3$ssigning up for free keys%4$s - usage will embed external scripts and transfer data to %2$s', 'th23-contact'), '<em>reCaptcha v2</em>', '<em>Google</em>', '<a href="https://www.google.com/recaptcha/" target="_blank">', '</a>'),
 			'attributes' => array(
 				'data-childs' => '.option-captcha_public,.option-captcha_private',
 			),
 			'save_after' => 'save_captcha',
 		);
-		// f) captcha_public
+		// j) captcha_public
 		$this->plugin['options']['captcha_public'] = array(
-			'title' => __('Public Key', 'th23-example'),
+			'title' => __('Public Key', 'th23-contact'),
 			'default' => '',
 			'shared' => true,
 		);
-		// g) captcha_private
+		// k) captcha_private
 		$this->plugin['options']['captcha_private'] = array(
-			'title' => __('Secret Key', 'th23-example'),
+			'title' => __('Secret Key', 'th23-contact'),
 			'default' => '',
 			'shared' => true,
 		);
-		// h) terms
-		$terms = (empty($title = get_option('th23_terms_title'))) ? __('Terms of Usage', 'th23-example') : $title;
-		$terms = (!empty($url = get_option('th23_terms_url'))) ? '<a href="' . esc_url($url) . '" target="_blank">' . esc_html($terms) . '</a>' : esc_html($terms);
-		$terms_description = '<a href="" class="toggle-switch">' . __('Show / hide examples', 'th23-example') . '</a>';
-		$terms_description .= '<span class="toggle-show-hide" style="display: none;"><br />' . __('Example:', 'th23-example');
-		/* translators: %s: link with/or title to sites terms & conditions, as defined by admin */
-		$terms_description .= '&nbsp;<input type="checkbox" />' . sprintf(__('I accept the %s and agree with processing my data', 'th23-example'), $terms);
-		/* translators: %s: link to general options page in admin */
-		$terms_description .= '<br />' . sprintf(__('Note: For changing title and link shown see %s', 'th23-example'), '<a href="options-general.php#th23_terms">' . __('General Settings') . '</a>');
-		$terms_description .= '</span>';
+		// l) terms
+		$description = '<a href="" class="toggle-switch">' . __('Show / hide examples', 'th23-contact') . '</a>';
+		$description .= '<span class="toggle-show-hide" style="display: none;"><br />' . __('Example:', 'th23-contact');
+		/* translators: parses in link with/or title to sites terms & conditions, as defined by admin */
+		$description .= '&nbsp;<input type="checkbox" />' . sprintf(__('I accept the %s and agree with processing my data', 'th23-contact'), $terms_link);
+		/* translators: parses in link to general options page in admin */
+		$description .= '<br />' . sprintf(__('Note: For changing title and link shown see %s', 'th23-contact'), '<a href="options-general.php#th23_terms">' . __('General Settings') . '</a>');
+		$description .= '</span>';
 		$this->plugin['options']['terms'] = array(
-			'title' => __('Terms', 'th23-example'),
-			'description' => $terms_description,
+			'title' => __('Terms', 'th23-contact'),
 			'element' => 'checkbox',
 			'default' => array(
 				'single' => 0,
 				0 => '',
-				1 => __('Unregistered users are required to accept terms of usage before sending their message', 'th23-example'),
+				1 => __('Unregistered users are required to accept terms of usage before sending their message', 'th23-contact'),
 			),
+			'description' => $description,
 		);
 
-	}
+		// optional: define presets for template option values (pre-filled, but changable by user)
+		$this->plugin['presets'] = array();
 
-	/* required: Setup of th23 Admin class
-	note: language strings passed on to admin class are optional - in case not provided by plugin the admin class language strings are only available in English
-	*/
-	function setup_admin_class() {
-
-		// enhance plugin info with generic plugin data
-		// note: make sure function exists as it is loaded late only, if at all - see https://developer.wordpress.org/reference/functions/get_plugin_data/
-		if(!function_exists('get_plugin_data')) {
-			require_once(ABSPATH . 'wp-admin/includes/plugin.php');
-		}
-		$this->plugin['data'] = get_plugin_data($this->plugin['file']);
-
-		// admin class is language agnostic, except translations in parent i18n variable
-		// note: need to populate $this->i18n earliest at init hook to get user locale
-		$this->i18n = array(
-			'Settings' => __('Settings'),
-			/* translators: parses in plugin version number */
-			'Version %s' => __('Version %s', 'th23-example'),
-			/* translators: parses in plugin name */
-			'Copy from %s' => __('Copy from %s', 'th23-example'),
-			'Support' => __('Support'),
-			'Done' => __('Done'),
-			'Settings saved.' => __('Settings saved.'),
-			'+' => __('+'),
-			'-' => __('-'),
-			'Save Changes' => __('Save Changes'),
-			/* translators: parses in plugin author name / link */
-			'By %s' => __('By %s'),
-			'Visit plugin site' => __('Visit plugin site'),
-			'Error' => __('Error'),
-			/* translators: 1: option name, 2: opening a tag of link to support/ plugin page, 3: closing a tag of link */
-			'Invalid combination of input field and default value for "%1$s" - please %2$scontact the plugin author%3$s' => __('Invalid combination of input field and default value for "%1$s" - please %2$scontact the plugin author%3$s', 'th23-example'),
-		);
-
-	}
-	function error_admin_class() {
-		/* translators: parses in names of 1: class which failed to load */
-		echo '<div class="notice notice-error"><p style="font-size: 14px;"><strong>' . esc_html($this->plugin['data']['Name']) . '</strong></p><p>' . esc_html(sprintf(__('Failed to load %1$s class', 'th23-example'), 'th23 Admin')) . '</p></div>';
 	}
 
 	// example: for certain code to be executed upon new "install" of the plugin, eg ensure certain presets are prepared and some intial settings values are added to the database
@@ -528,32 +583,6 @@ class th23_example_admin extends th23_example {
 
 		// Delete option values
 		delete_option($this->plugin['slug']);
-
-	}
-
-	// example: for certain code to be executed before the plugin is updated ("pre_update"), eg to store previous version of the plugin as transient
-	// note: this function is still run by the old version of the plugin, ie before the update
-	function pre_update($upgrader_object, $options) {
-		if('update' == $options['action'] && 'plugin' == $options['type'] && !empty($options['plugins']) && is_array($options['plugins']) && in_array($this->plugin['basename'], $options['plugins'])) {
-			set_transient('th23_example_update', $this->plugin['version']);
-		}
-	}
-
-	// example: for certain code to be executed after the plugin is updated ("post_update"), eg to trigger requird actions based on the previous version to eg alter a database table to add new fields and prefil these
-	function post_update() {
-
-		if(empty($previous = get_transient('th23_example_update'))) {
-			return;
-		}
-
-		/* customization: execute required update actions, optionally depending on previously installed version
-		if(version_compare($previous, '1.6.0', '<')) {
-			// action required
-		}
-		*/
-
-		// upon successful update, delete transient (update only executed once)
-		delete_transient('th23_example_update');
 
 	}
 
@@ -640,6 +669,7 @@ class th23_example_admin extends th23_example {
 		return $new_options;
 	}
 
+	// ... optional: functions for plugin functionality in admin area ...
 
 }
 

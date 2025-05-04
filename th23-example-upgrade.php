@@ -1,10 +1,9 @@
 <?php
 /*
 th23 Example
-Upgrade handling to leverage th23 Admin class
+Upgrade script leveraging th23 Admin class
 
-Coded 2024-2025 by Thorsten Hartmann (th23)
-https://th23.net/
+note: This is NOT intended to be a fully working meaningful admin script, but rather a summary of possibilities with examples!
 */
 
 /*
@@ -25,7 +24,7 @@ if(!defined('ABSPATH')) {
     exit;
 }
 
-class th23_contact_upgrade {
+class th23_example_upgrade {
 
 	// ensure availability of plugin data in upgrader
 	// important: plugin data are "read only" in upgrader and NOT passed back to main plugin file
