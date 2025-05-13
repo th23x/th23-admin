@@ -2,7 +2,7 @@
 /*
 th23 Admin
 Basic admin functionality
-Version: 1.7.0
+Version: 1.7.1
 
 Coded 2024-2025 by Thorsten Hartmann (th23)
 https://th23.net/
@@ -15,8 +15,8 @@ if(!defined('ABSPATH')) {
     exit;
 }
 
-if(!class_exists('th23_admin_v170')) {
-	class th23_admin_v170 {
+if(!class_exists('th23_admin_v171')) {
+	class th23_admin_v171 {
 
 		private $parent;
 		private $data = array();
@@ -32,8 +32,7 @@ if(!class_exists('th23_admin_v170')) {
 			// note: data-target, data-copy and data-shared attributes are used for cross-plugin and suggested settings
 			$this->data['kses']['link'] = array('a' => array('href' => array(), 'title' => array(), 'class' => array(), 'target' => array(), 'data-target' => array(), 'data-shared' => array(), 'data-copy' => array()));
 			$this->data['kses']['format'] = array('strong' => array(), 'em' => array(), 'span' => array('style' => array(), 'title' => array(), 'class' => array()));
-			$this->data['kses']['link_format'] = array_merge($this->data['kses']['link'], $this->data['kses']['format']);
-			$this->data['kses']['description'] = array_merge($this->data['kses']['link_format'], array('br' => array(), 'code' => array(), 'input' => array('type' => array())));
+			$this->data['kses']['description'] = array_merge($this->data['kses']['link'], $this->data['kses']['format'], array('br' => array(), 'pre' => array(), 'code' => array(), 'input' => array('type' => array())));
 
 			// note: priority 20 ensures hooking actions after parent has pepared admin class setup
 			add_action('init', array(&$this, 'actions'), 20);
@@ -81,7 +80,7 @@ if(!class_exists('th23_admin_v170')) {
 				echo '<div class="notice notice-error">';
 				echo '<p style="font-size: 14px;"><strong>' . esc_html($this->parent->plugin['data']['Name']) . '</strong></p>';
 				foreach($this->parent->plugin['requirement_notices'] as $notice) {
-					echo '<p>' . wp_kses($notice, $this->data['kses']['link_format']) . '</p>';
+					echo '<p>' . wp_kses($notice, $this->data['kses']['description']) . '</p>';
 				}
 				echo '</div>';
 			}
@@ -107,7 +106,7 @@ if(!class_exists('th23_admin_v170')) {
 				if(!empty($this->parent->plugin['requirement_notices'])) {
 					$notices = '';
 					foreach($this->parent->plugin['requirement_notices'] as $notice) {
-						$notices .= '<div style="margin: 1em 0; padding: 5px 10px; background-color: #FFFFFF; border-left: 4px solid #DD3D36; box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1);">' . wp_kses($notice, $this->data['kses']['link_format']) . '</div>';
+						$notices .= '<div style="margin: 1em 0; padding: 5px 10px; background-color: #FFFFFF; border-left: 4px solid #DD3D36; box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1);">' . wp_kses($notice, $this->data['kses']['description']) . '</div>';
 					}
 					$last = array_pop($links);
 					$links[] = $last . $notices;
@@ -170,8 +169,8 @@ if(!class_exists('th23_admin_v170')) {
 
 		// Retrieve plugin (update) information from cache or download from repository
 		function update_request($refresh = false) {
-			$json = get_transient($this->parent->plugin['slug'] . '_update_cache');
-			if(false === $json || true == $refresh) {
+			$json = ($refresh) ? false : get_transient($this->parent->plugin['slug'] . '_update_cache');
+			if(false === $json) {
 				$remote = wp_remote_get($this->parent->plugin['update_url'], array('timeout' => 10, 'headers' => array('Accept' => 'application/json')));
 				if(is_wp_error($remote) || 200 !== wp_remote_retrieve_response_code($remote) || empty($json = wp_remote_retrieve_body($remote))) {
 					return false;
@@ -620,7 +619,7 @@ if(!class_exists('th23_admin_v170')) {
 			// Show warnings, if requirements are not met
 			if(!empty($this->parent->plugin['requirement_notices'])) {
 				foreach($this->parent->plugin['requirement_notices'] as $notice) {
-					echo '<div class="notice notice-error"><p>' . wp_kses($notice, $this->data['kses']['link_format']) . '</p></div>';
+					echo '<div class="notice notice-error"><p>' . wp_kses($notice, $this->data['kses']['description']) . '</p></div>';
 				}
 			}
 
